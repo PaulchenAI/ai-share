@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>【Ai分享】Agent本地办公执行提效实践</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 基础重置与全屏滚动设置 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* 隐藏原生滚动条 */
+            background-color: #05050C; /* 极深蓝黑背景 */
+            color: #e2e8f0;
+            font-family: 'Outfit', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* 滚动容器 */
+        #scroll-container {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
+            will-change: transform;
+        }
+
+        .section {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* 统一内容容器宽度和留白 */
+        .content-box {
+            width: 100%;
+            max-width: 1280px;
+            padding: 1.5rem 3rem;
+            z-index: 10;
+        }
+
+        /* 科技感背景特效 */
+        .bg-grid {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(56, 189, 248, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .bg-glow-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.05) 0%, rgba(0, 0, 0, 0) 65%);
+            border-radius: 50%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        @property --glow-angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+
+        /* 玻璃拟态卡片 */
+        .glass-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .glass-card::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: 0.75rem;
+            padding: 1px;
+            background: transparent;
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 5;
+        }
+
+        .glass-card:hover {
+            border-color: transparent;
+            background: rgba(255, 255, 255, 0.04);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.06);
+        }
+
+        .glass-card:hover::after {
+            opacity: 0.55;
+            background: conic-gradient(from var(--glow-angle), transparent 50%, #38bdf8 80%, #818cf8 95%, #38bdf8 100%);
+            animation: spin-glow 6s linear infinite;
+        }
+
+        .glass-card.no-glow:hover::after {
+            display: none;
+        }
+
+        .glass-card.no-glow:hover {
+            border-color: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.25);
+        }
+
+        @keyframes spin-glow {
+            0% {
+                --glow-angle: 0deg;
+            }
+            100% {
+                --glow-angle: 360deg;
+            }
+        }
+
+        /* 文字特效 */
+        .text-gradient {
+            background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .text-glow {
+            text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+        }
+
+        /* 入场动画类 */
+        .anim-fade-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .anim-fade-in {
+            opacity: 0;
+            transition: opacity 0.8s ease;
+        }
+
+        /* 当 section 处于 active 状态时触发动画 */
+        .section.active .anim-fade-up {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .section.active .anim-fade-in {
+            opacity: 1;
+        }
+
+        /* 动画延迟 */
+        .delay-100 { transition-delay: 0.1s; }
+        .delay-200 { transition-delay: 0.2s; }
+        .delay-300 { transition-delay: 0.3s; }
+        .delay-400 { transition-delay: 0.4s; }
+
+        /* 右侧导航点 */
+        #nav-dots {
+            position: fixed;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 100;
+        }
+        .nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .nav-dot:hover {
+            background: rgba(56, 189, 248, 0.5);
+        }
+        .nav-dot.active {
+            background: #38bdf8;
+            box-shadow: 0 0 10px #38bdf8;
+            transform: scale(1.4);
+        }
+        .nav-dot::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .nav-dot:hover::after {
+            opacity: 1;
+        }
+        
+        /* 标签样式 */
+        .tag {
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            padding: 0.2rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        .tag:hover {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        /* 手机 Mockup 容器 */
+        .phone-mockup {
+            border: 10px solid #1e293b;
+            border-radius: 24px;
+            background: #090d16;
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.5), 0 0 20px rgba(56, 189, 248, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+        .phone-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 110px;
+            height: 18px;
+            background: #1e293b;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            z-index: 10;
+        }
+
+        /* 自定义滚动条 */
+        .custom-scroll::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.01);
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.3);
+        }
+
+        /* 手机端响应式覆盖 */
+        @media (max-width: 768px) {
+            html, body {
+                height: auto;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+
+            #scroll-container {
+                height: auto;
+                transform: none !important;
+                transition: none;
+            }
+
+            .section {
+                height: auto;
+                min-height: 100svh;
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+            }
+
+            .content-box {
+                padding: 1rem;
+            }
+
+            .bg-glow-center {
+                width: 320px;
+                height: 320px;
+            }
+
+            #nav-dots {
+                display: none;
+            }
+        }
+        
+        /* 放大图片光标样式 */
+        .cursor-zoom-in { cursor: zoom-in; }
+        .cursor-zoom-out { cursor: zoom-out; }
+
+        /* --- 全局主题平滑过渡 --- */
+        body, .glass-card, .bg-grid, .bg-glow-center, h1, h2, h3, p, span, button, table, th, td, code, pre, svg, a, input, select {
+            transition: background 0.4s ease, background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease, text-shadow 0.4s ease, transform 0.4s ease;
+        }
+
+        /* --- 亮色模式主题覆盖 (Light Theme Overrides) --- */
+        body.light {
+            background: linear-gradient(135deg, #F8FAFC 0%, #EEF2F6 100%);
+            color: #334155;
+        }
+
+        body.light .bg-grid {
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
+        }
+
+        body.light .bg-glow-center {
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(255, 255, 255, 0) 65%);
+        }
+
+        /* 亮色玻璃卡片 */
+        body.light .glass-card {
+            background: rgba(255, 255, 255, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02);
+        }
+
+        body.light .glass-card:hover {
+            background: rgba(255, 255, 255, 0.85);
+            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.08);
+        }
+
+        body.light .glass-card:hover::after {
+            opacity: 0.55;
+            background: conic-gradient(from var(--glow-angle), transparent 50%, #0284c7 80%, #6366f1 95%, #0284c7 100%);
+        }
+
+        body.light .glass-card.no-glow:hover {
+            border-color: rgba(99, 102, 241, 0.15);
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        }
+
+        body.light .text-gradient {
+            background: linear-gradient(135deg, #0F172A 30%, #4F46E5 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        body.light .text-glow {
+            text-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+        }
+
+        /* 导航指示点 */
+        body.light .nav-dot {
+            background: rgba(15, 23, 42, 0.15);
+        }
+        body.light .nav-dot:hover {
+            background: rgba(79, 70, 229, 0.5);
+        }
+        body.light .nav-dot.active {
+            background: #4F46E5;
+            box-shadow: 0 0 8px rgba(79, 70, 229, 0.4);
+        }
+        body.light .nav-dot::after {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            color: #475569;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+        }
+
+        /* 手机模型 */
+        body.light .phone-mockup {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+            box-shadow: 0 15px 35px -5px rgba(15, 23, 42, 0.08), 0 0 20px rgba(99, 102, 241, 0.05);
+        }
+        body.light .phone-notch {
+            background: #cbd5e1;
+        }
+
+        /* 按钮与通用文本样式 */
+        body.light #theme-toggle {
+            background: rgba(255, 255, 255, 0.8);
+            border-color: rgba(15, 23, 42, 0.08);
+            color: #475569;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+        }
+        body.light #theme-toggle:hover {
+            border-color: rgba(79, 70, 229, 0.3);
+            color: #4F46E5;
+        }
+
+        /* 文本和预览容器替换 */
+        body.light .text-white { color: #0F172A !important; }
+        body.light .text-slate-300 { color: #334155 !important; }
+        body.light .text-slate-400 { color: #475569 !important; }
+        body.light .text-slate-200 { color: #1E293B !important; }
+        
+        body.light .bg-white\/5 { background-color: rgba(15, 23, 42, 0.04) !important; }
+        body.light .border-white\/5 { border-color: rgba(15, 23, 42, 0.08) !important; }
+        body.light .border-white\/10 { border-color: rgba(15, 23, 42, 0.08) !important; }
+        body.light .bg-slate-950\/40 { background-color: rgba(15, 23, 42, 0.02) !important; }
+        body.light .bg-slate-900\/80 { 
+            background-color: #F1F5F9 !important; 
+            border-color: #CBD5E1 !important;
+            color: #0F172A !important;
+        }
+        body.light pre, body.light code, body.light .font-mono {
+            color: #0F172A;
+        }
+        
+        body.light .text-cyan-400 { color: #0284c7 !important; }
+        body.light .text-indigo-400 { color: #4F46E5 !important; }
+        body.light .text-purple-400 { color: #7C3AED !important; }
+        body.light .text-pink-400 { color: #DB2777 !important; }
+        body.light .text-emerald-400 { color: #059669 !important; }
+
+        body.light .bg-cyan-500\/10 { background-color: rgba(2, 132, 199, 0.08) !important; }
+        body.light .border-cyan-500\/20 { border-color: rgba(2, 132, 199, 0.15) !important; }
+        body.light .border-cyan-500\/30 { border-color: rgba(2, 132, 199, 0.15) !important; }
+        body.light .bg-indigo-500\/10 { background-color: rgba(79, 70, 229, 0.08) !important; }
+        body.light .border-indigo-500\/25 { border-color: rgba(79, 70, 229, 0.15) !important; }
+        body.light .bg-pink-500\/10 { background-color: rgba(219, 39, 119, 0.08) !important; }
+        body.light .bg-emerald-500\/10 { background-color: rgba(5, 150, 105, 0.08) !important; }
+        body.light .bg-emerald-500\/20 { background-color: rgba(5, 150, 105, 0.12) !important; }
+        body.light .border-emerald-500\/30 { border-color: rgba(5, 150, 105, 0.15) !important; }
+
+        /* Slide 11 Links hover in light mode */
+        body.light a.hover\:border-cyan-500\/30:hover { border-color: rgba(2, 132, 199, 0.25) !important; }
+        body.light a.hover\:bg-cyan-500\/5:hover { background-color: rgba(2, 132, 199, 0.04) !important; }
+        body.light .group\/link:hover .text-slate-500 { color: #0284c7 !important; }
+
+        /* Code copy tags */
+        body.light .tag {
+            background: rgba(79, 70, 229, 0.06);
+            border: 1px solid rgba(79, 70, 229, 0.15);
+            color: #4F46E5;
+        }
+        body.light .tag:hover {
+            background: rgba(79, 70, 229, 0.12);
+            border-color: rgba(79, 70, 229, 0.3);
+        }
+
+        /* Slide 10 API Key table */
+        body.light thead tr.bg-slate-950\/90 { background-color: #F1F5F9 !important; }
+        body.light table thead tr th { color: #475569 !important; border-bottom: 1px solid #E2E8F0; }
+        body.light tbody tr.hover\:bg-white\/5:hover { background-color: rgba(15, 23, 42, 0.02) !important; }
+        body.light tbody { color: #334155 !important; }
+        body.light tbody tr { border-bottom: 1px solid rgba(15, 23, 42, 0.04) !important; }
+
+        /* 针对复制按钮在亮色模式下的美化与对比度增强 */
+        body.light button[id^="copy-btn-"], 
+        body.light button[id^="key-c-"] {
+            background-color: #FFFFFF !important;
+            border-color: #D1D5DB !important;
+            color: #4B5563 !important;
+        }
+        body.light button[id^="copy-btn-"]:hover, 
+        body.light button[id^="key-c-"]:hover {
+            background-color: rgba(2, 132, 199, 0.08) !important;
+            border-color: #0284C7 !important;
+            color: #0284C7 !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 导航点 -->
+    <div id="nav-dots"></div>
+
+    <!-- 主题切换按钮 -->
+    <button id="theme-toggle" class="fixed top-6 right-6 z-[100] w-10 h-10 rounded-full flex items-center justify-center bg-white/5 border border-white/10 hover:border-cyan-500/30 text-slate-400 hover:text-cyan-400 transition-all duration-300 shadow-lg focus:outline-none cursor-pointer" aria-label="切换主题">
+        <!-- Sun Icon -->
+        <svg id="theme-toggle-sun" class="w-5 h-5 transition-transform duration-500 ease-out transform rotate-0 scale-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707m12.728 12.728A9 9 0 115.636 5.636m12.728 12.728L12 12"></path>
+        </svg>
+        <!-- Moon Icon -->
+        <svg id="theme-toggle-moon" class="w-5 h-5 absolute transition-transform duration-500 ease-out transform -rotate-90 scale-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+        </svg>
+    </button>
+
+    <div id="scroll-container">
+
+        <!-- 第1页｜封面与前言 -->
+        <section class="section" id="sec-1">
+            <div class="bg-grid"></div>
+            <div class="bg-glow-center"></div>
+            <div class="content-box flex flex-col items-center">
+                <div class="anim-fade-up text-center mb-6 w-full">
+                    <div class="flex items-center justify-center gap-3 mb-3">
+                        <div class="w-8 h-[1px] bg-gradient-to-r from-transparent to-cyan-500/50"></div>
+                        <p class="text-xs text-cyan-400 tracking-[0.3em] font-light">日常工作中的提效实践</p>
+                        <div class="w-8 h-[1px] bg-gradient-to-l from-transparent to-cyan-500/50"></div>
+                    </div>
+                    <h1 class="text-3xl md:text-5xl font-bold tracking-tight text-gradient pb-2 text-glow">
+                        AI 分享：本地办公 Agent 执行提效
+                    </h1>
+                    <p class="text-sm md:text-lg text-slate-400 font-light mt-1">
+                        从 <span class="text-white font-normal">“问答助手”</span> 走向 <span class="text-white font-normal border-b border-cyan-500/30 pb-0.5">“端到端任务执行与交付”</span>
+                    </p>
+                </div>
+                
+                <div class="glass-card max-w-4xl w-full bg-black/40 anim-fade-up delay-100 flex flex-col border border-white/5 rounded-xl overflow-hidden">
+                    <div class="bg-white/5 border-b border-white/5 px-4 py-2 flex items-center justify-between">
+                        <div class="flex gap-1.5">
+                            <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></div>
+                            <div class="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></div>
+                        </div>
+                        <div class="text-xs text-slate-400 font-mono">preface.md</div>
+                        <div class="w-12"></div>
+                    </div>
+                    <div class="p-6 md:p-8 flex flex-col md:flex-row gap-6 items-center">
+                        <div class="flex-1 text-slate-300 text-sm md:text-base leading-relaxed space-y-3">
+                            <p>
+                                <span class="text-cyan-400 font-medium">前言：</span>我们日常工作中已开始使用多种 Agent 工具（如云端的 ArkClaw，本地桌面端的 QoderWork / Workbuddy 等）。
+                            </p>
+                            <p>
+                                传统大模型更像<strong>“问答助手”</strong>，用户提出一个问题，模型给出一段回答；而 <strong>Agent 工具</strong>可以根据目标，自动拆解任务、规划步骤、调用工具、读取与修改本地文件，并在执行中根据反馈不断修正，交付相对完整的工作成果。
+                            </p>
+                            <p class="text-slate-400 text-xs md:text-sm">
+                                💡 Agent 产品的任务交付质量取决于：<strong>模型 + 框架本身</strong>。核心价值是让大模型具备更强的任务理解、过程执行和结果交付能力。
+                            </p>
+                        </div>
+                        <div class="w-full md:w-80 shrink-0 flex flex-col justify-center bg-white/5 p-4 border border-white/5 rounded-lg space-y-2.5">
+                            <div class="text-xs text-slate-400 font-semibold border-b border-white/5 pb-1">AI 提效核心标签</div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="tag">ArkClaw 云端运行</span>
+                                <span class="tag">QoderWork 本地端</span>
+                                <span class="tag">WorkBuddy 本地端</span>
+                                <span class="tag">Skill 技能包</span>
+                                <span class="tag">MCP 工具</span>
+                                <span class="tag">群消息自动化</span>
+                                <span class="tag">PDF合并</span>
+                                <span class="tag">跨端通道控制</span>
+                            </div>
+                            <div class="text-right text-[10px] text-slate-500 pt-1 border-t border-white/5">
+                                市场运营部 · 教师发展组 AI产品实习生：陈鑫
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第2页｜Agent产品的底层逻辑 -->
+        <section class="section" id="sec-2">
+            <div class="bg-grid"></div>
+            <div class="content-box">
+                <div class="text-center mb-4 anim-fade-up">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1">Agent 产品的底层逻辑</h2>
+                    <p class="text-xs text-slate-400">大模型配合执行框架，实现从任务拆解到成果交付的闭环</p>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                    <!-- 左侧：长链路与执行机制 -->
+                    <div class="lg:col-span-5 flex flex-col gap-4">
+                        <div class="glass-card p-5 anim-fade-up delay-100 flex-1 flex flex-col justify-center">
+                            <h3 class="text-base font-semibold text-cyan-400 mb-3 flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> 长链路任务执行
+                            </h3>
+                            <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                                Agent 工具的执行核心在于对复杂任务的长周期执行和自适应调整：
+                            </p>
+                            <!-- 流程气泡图 -->
+                            <div class="flex flex-col gap-2 font-mono text-[11px]">
+                                <div class="bg-white/5 border border-white/5 px-3 py-1.5 rounded flex items-center justify-between">
+                                    <span class="text-cyan-400">1. 目标输入</span>
+                                    <span class="text-slate-400">用户提出复杂目标</span>
+                                </div>
+                                <div class="bg-white/5 border border-white/5 px-3 py-1.5 rounded flex items-center justify-between">
+                                    <span class="text-indigo-400">2. 意图识别 & 规划</span>
+                                    <span class="text-slate-400">大模型自动拆解步骤</span>
+                                </div>
+                                <div class="bg-white/5 border border-white/5 px-3 py-1.5 rounded flex items-center justify-between">
+                                    <span class="text-purple-400">3. 工具调用</span>
+                                    <span class="text-slate-400">读取/调用 MCP 或 Skill</span>
+                                </div>
+                                <div class="bg-white/5 border border-white/5 px-3 py-1.5 rounded flex items-center justify-between">
+                                    <span class="text-pink-400">4. 反馈修正 & 交付</span>
+                                    <span class="text-slate-400">检查运行结果并修正输出</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-card p-5 anim-fade-up delay-200 flex-1 flex flex-col justify-center">
+                            <h3 class="text-base font-semibold text-indigo-400 mb-2 flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span> Coding 方式执行任务
+                            </h3>
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                Agent 执行任务的本质是将任务拆分为具体的<strong>代码/函数节点</strong>（例如“读取 PDF，总结关键点”）。在每个具体节点，通过调用函数、依赖库、Skills 或 MCP，以编程脚本的形式完成控制和处理。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：图片查看器 -->
+                    <div class="lg:col-span-7 flex flex-col glass-card no-glow p-4 anim-fade-up delay-300">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
+                            <span class="text-xs font-mono text-slate-400">Node & Execution Visualizer</span>
+                            <!-- 选项卡按钮 -->
+                            <div class="flex gap-1.5" id="slide2-tabs">
+                                <button onclick="showSlide2Image(0)" class="tab-btn active bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2.5 py-1 rounded text-xs transition-colors">任务拆解节点</button>
+                                <button onclick="showSlide2Image(1)" class="tab-btn bg-white/5 text-slate-400 border border-transparent px-2.5 py-1 rounded text-xs transition-colors">执行流程</button>
+                                <button onclick="showSlide2Image(2)" class="tab-btn bg-white/5 text-slate-400 border border-transparent px-2.5 py-1 rounded text-xs transition-colors">细节执行库</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 图片展示区 -->
+                        <div class="flex-grow flex items-center justify-center bg-slate-950/40 rounded-lg border border-white/5 p-2 overflow-hidden h-72 md:h-96" id="slide2-imgs">
+                            <img src="sucai/1.2-1.png" class="max-h-full max-w-full object-contain" alt="任务节点流">
+                            <img src="sucai/1.2-2.png" class="max-h-full max-w-full object-contain hidden" alt="执行流程图">
+                            <img src="sucai/1.2-3.png" class="max-h-full max-w-full object-contain hidden" alt="执行结果展示">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第3页｜云端与桌面端区别 -->
+        <section class="section" id="sec-3">
+            <div class="bg-grid"></div>
+            <div class="content-box">
+                <div class="text-center mb-6 anim-fade-up">
+                    <h2 class="text-2xl md:text-3xl font-bold text-gradient pb-1">云端 Agent 与 桌面端 Agent 的区别</h2>
+                    <p class="text-xs text-slate-400">运行环境的不同决定了它们各自的应用主场</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                    <!-- 左侧：主要区别说明 -->
+                    <div class="lg:col-span-5 space-y-4 anim-fade-up delay-100">
+                        <div class="glass-card p-5 border-l-4 border-l-cyan-500">
+                            <h3 class="text-base font-semibold text-white mb-1.5 flex items-center justify-between">
+                                <span>ArkClaw</span>
+                                <span class="text-xs text-cyan-400 font-normal">云端 Agent 平台</span>
+                            </h3>
+                            <p class="text-xs text-slate-300 leading-relaxed mb-1">
+                                <strong>核心特点：</strong>部署在云端服务器运行。
+                            </p>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                <strong>优势：</strong>7×24小时在线、不需要本地电脑保持开机、支持远程触发、跨设备随时查看使用。<br>
+                                <strong>定位：</strong>适合做“云端长期运行任务助手”。
+                            </p>
+                        </div>
+
+                        <div class="glass-card p-5 border-l-4 border-l-indigo-500">
+                            <h3 class="text-base font-semibold text-white mb-1.5 flex items-center justify-between">
+                                <span>QoderWork / WorkBuddy</span>
+                                <span class="text-xs text-indigo-400 font-normal">桌面端 Agent 应用</span>
+                            </h3>
+                            <p class="text-xs text-slate-300 leading-relaxed mb-1">
+                                <strong>核心特点：</strong>作为客户端软件直接在本地电脑运行。
+                            </p>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                <strong>优势：</strong>可直接安全接触本地文件及整个办公生态，极佳地适合处理 Excel、文档项目、本地代码库、音视频素材文件等具体的本机工作任务。<br>
+                                <strong>定位：</strong>适合做“本地办公执行与操作助手”。
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：结构性图解 -->
+                    <div class="lg:col-span-7 anim-fade-up delay-200">
+                        <div class="glass-card no-glow p-3 bg-black/40 border border-white/5 rounded-xl overflow-hidden flex flex-col">
+                            <div class="text-[10px] font-mono text-slate-500 mb-1.5 px-1">Comparison Diagram (2-1.png)</div>
+                            <div class="bg-slate-950/40 rounded-lg p-2 border border-white/5 flex items-center justify-center h-80">
+                                <img src="sucai/2-1.png" class="max-h-full max-w-full object-contain rounded" alt="云端和桌面端Agent对比">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第4页｜前置知识 Skill & MCP -->
+        <section class="section" id="sec-4">
+            <div class="bg-grid"></div>
+            <div class="bg-glow-center" style="opacity: 0.3;"></div>
+            <div class="content-box">
+                <div class="text-center mb-8 anim-fade-up">
+                    <p class="text-cyan-400 text-xs tracking-widest uppercase mb-1">前置知识</p>
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-2">Qoderwork 两大效率工具：Skill 与 MCP</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                    <!-- Skill Card -->
+                    <div class="glass-card p-6 md:p-8 anim-fade-up delay-100 flex flex-col relative overflow-hidden group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-cyan-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-lg bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white">Skill</h3>
+                                <p class="text-xs text-cyan-400">专项技能包</p>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3 flex-grow">
+                            <div class="bg-white/5 border border-white/5 rounded p-3">
+                                <div class="text-xs text-slate-400 font-medium mb-1">通俗理解</div>
+                                <div class="text-sm text-slate-200">给 Agent 提前准备好的“专项工具包/方案包”</div>
+                            </div>
+                            <div class="bg-white/5 border border-white/5 rounded p-3">
+                                <div class="text-xs text-slate-400 font-medium mb-1">解决什么问题</div>
+                                <div class="text-sm text-slate-200">让 Agent 知道遇到某类具体任务（如合并 PDF、解析文档）时，应该采用什么步骤、调用什么依赖、生成什么处理脚本。</div>
+                            </div>
+                            <div class="bg-cyan-500/5 border border-cyan-500/10 rounded p-3">
+                                <div class="text-xs text-cyan-400 font-medium mb-1">💡 通俗案例：把大象装进冰箱</div>
+                                <div class="text-xs text-slate-300 leading-relaxed">
+                                    <strong>Skill 告诉 Agent：</strong>要把大象放进冰箱分为三步（第一步打开门 ➡️ 第二步放大象 ➡️ 第三步关门）。它为任务提供了<strong>执行的步骤蓝图</strong>。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MCP Card -->
+                    <div class="glass-card p-6 md:p-8 anim-fade-up delay-200 flex flex-col relative overflow-hidden group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-indigo-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+                        <div class="flex items-center gap-4 mb-4">
+                            <div class="w-12 h-12 rounded-lg bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            </div>
+                            <div>
+                                <h3 class="text-xl font-bold text-white">MCP</h3>
+                                <p class="text-xs text-indigo-400">连接工具的协议</p>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3 flex-grow">
+                            <div class="bg-white/5 border border-white/5 rounded p-3">
+                                <div class="text-xs text-slate-400 font-medium mb-1">通俗理解</div>
+                                <div class="text-sm text-slate-200">让 Agent 能无缝连接各种外部软件与能力的“协议”</div>
+                            </div>
+                            <div class="bg-white/5 border border-white/5 rounded p-3">
+                                <div class="text-xs text-slate-400 font-medium mb-1">解决什么问题</div>
+                                <div class="text-sm text-slate-200">打破大模型“沙盒限制”，让 Agent 可以调用本地文件、外部数据库、浏览器控制、终端命令以及企业钉钉、飞书等生态。</div>
+                            </div>
+                            <div class="bg-indigo-500/5 border border-indigo-500/10 rounded p-3">
+                                <div class="text-xs text-indigo-400 font-medium mb-1">💡 通俗案例：把大象装进冰箱</div>
+                                <div class="text-xs text-slate-300 leading-relaxed">
+                                    <strong>MCP 给 Agent 接上“机械手”或“遥控器”：</strong>Agent 本身只是个大模型，它自己不能去拉冰箱门；有了 MCP，它才能控制外部工具去<strong>执行动作</strong>，达成放进冰箱的目标。
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第5页｜实践场景1: 日志读取与总结 -->
+        <section class="section" id="sec-5">
+            <div class="bg-grid"></div>
+            <div class="content-box">
+                <div class="text-center mb-4 anim-fade-up">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1"><span class="text-cyan-400">实践 1</span>：钉钉日志读取与工作总结</h2>
+                    <p class="text-xs text-slate-400">将企业钉钉日志的配置接入 Qoderwork 并执行日志读取</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                    <!-- 左侧：步骤说明与导航 -->
+                    <div class="lg:col-span-4 flex flex-col justify-between glass-card p-5 anim-fade-up delay-100">
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold text-slate-400 border-b border-white/5 pb-2">操作指引步骤</h3>
+                            
+                            <!-- 步骤按钮 -->
+                            <div class="flex flex-col gap-2" id="slide5-tabs">
+                                <button onclick="showSlide5Step(0)" class="tab-btn text-left p-3 rounded-lg border border-cyan-500/20 bg-cyan-500/10 text-cyan-400 flex items-start gap-2.5 transition-all duration-200 active">
+                                    <span class="w-5 h-5 rounded-full bg-cyan-400 text-slate-900 text-xs font-mono font-bold flex items-center justify-center shrink-0">1</span>
+                                    <div class="text-xs">
+                                        <p class="font-bold">Step 1: 获取 MCP 配置</p>
+                                        <p class="text-slate-300 mt-1 font-light">访问钉钉 MCP 广场，找到“钉钉日志”服务并复制其配置代码</p>
+                                    </div>
+                                </button>
+                                
+                                <button onclick="showSlide5Step(1)" class="tab-btn text-left p-3 rounded-lg border border-transparent bg-white/5 text-slate-400 flex items-start gap-2.5 transition-all duration-200">
+                                    <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 text-xs font-mono font-bold flex items-center justify-center shrink-0">2</span>
+                                    <div class="text-xs">
+                                        <p class="font-bold">Step 2: 配置 Qoderwork</p>
+                                        <p class="text-slate-500 mt-1 font-light">将配置发送给 Qoderwork 对话框执行自动环境配置</p>
+                                    </div>
+                                </button>
+                                
+                                <button onclick="showSlide5Step(2)" class="tab-btn text-left p-3 rounded-lg border border-transparent bg-white/5 text-slate-400 flex items-start gap-2.5 transition-all duration-200">
+                                    <span class="w-5 h-5 rounded-full bg-slate-800 text-slate-400 text-xs font-mono font-bold flex items-center justify-center shrink-0">3</span>
+                                    <div class="text-xs">
+                                        <p class="font-bold">Step 3: 测试与读取</p>
+                                        <p class="text-slate-500 mt-1 font-light">下达命令，让 Agent 读取并智能汇总今日/昨日日志</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-white/5 border border-white/5 rounded-lg p-3 text-[11px] text-slate-400 leading-relaxed mt-4">
+                            🔗 <strong>配置地址：</strong><a href="https://mcp.dingtalk.com" target="_blank" class="text-cyan-400 hover:underline">https://mcp.dingtalk.com</a>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：对应截图区域 -->
+                    <div class="lg:col-span-8 glass-card no-glow p-4 anim-fade-up delay-200 flex flex-col">
+                        <div class="text-xs font-mono text-slate-500 border-b border-white/5 pb-2 mb-3" id="slide5-title">
+                            Step 1: 访问钉钉MCP广场 (3.1-1.png & 3.1-2.png)
+                        </div>
+                        <div class="flex-grow flex items-center justify-center bg-slate-950/40 rounded-lg border border-white/5 p-2 overflow-hidden h-72 md:h-96" id="slide5-content">
+                            <!-- Step 1 images -->
+                            <div class="flex flex-col md:flex-row gap-3 w-full h-full justify-center items-center" id="slide5-img-0">
+                                <img src="sucai/3.1-1.png" class="max-h-[45%] md:max-h-full max-w-[90%] md:max-w-[48%] object-contain rounded border border-white/5" alt="钉钉MCP广场">
+                                <img src="sucai/3.1-2.png" class="max-h-[45%] md:max-h-full max-w-[90%] md:max-w-[48%] object-contain rounded border border-white/5" alt="钉钉日志MCP配置">
+                            </div>
+                            <!-- Step 2 image -->
+                            <div class="w-full h-full hidden flex items-center justify-center" id="slide5-img-1">
+                                <img src="sucai/3.1-3.png" class="max-h-full max-w-full object-contain rounded border border-white/5" alt="发给Qoderwork配置">
+                            </div>
+                            <!-- Step 3 images -->
+                            <div class="flex flex-col md:flex-row gap-3 w-full h-full justify-center items-center hidden" id="slide5-img-2">
+                                <img src="sucai/3.1-4.png" class="max-h-[45%] md:max-h-full max-w-[90%] md:max-w-[48%] object-contain rounded border border-white/5" alt="测试指令">
+                                <img src="sucai/3.1-5.png" class="max-h-[45%] md:max-h-full max-w-[90%] md:max-w-[48%] object-contain rounded border border-white/5" alt="读取成功并汇总">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第6页｜实践场景2: 钉钉机器人群发消息 -->
+        <section class="section" id="sec-6">
+            <div class="bg-grid"></div>
+            <div class="content-box">
+                <div class="text-center mb-4 anim-fade-up">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1"><span class="text-cyan-400">实践 2</span>：钉钉自定义机器人群发消息</h2>
+                    <p class="text-xs text-slate-400">配置自定义机器人 Webhook，调用 MCP 实现定时提醒与 @全体成员</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                    <!-- 左侧：操作流程与命令 -->
+                    <div class="lg:col-span-5 flex flex-col justify-between glass-card p-5 anim-fade-up delay-100">
+                        <div class="space-y-4">
+                            <!-- 选项卡按钮 -->
+                            <div class="flex border-b border-white/5 pb-2" id="slide6-tabs">
+                                <button onclick="showSlide6Step(0)" class="tab-btn flex-1 text-center py-1 text-xs font-bold text-cyan-400 border-b-2 border-cyan-500 active">1. 配置机器人</button>
+                                <button onclick="showSlide6Step(1)" class="tab-btn flex-1 text-center py-1 text-xs text-slate-400 border-b-2 border-transparent">2. 发送群通知</button>
+                            </div>
+
+                            <!-- 步骤1内容 -->
+                            <div id="slide6-desc-0" class="text-xs text-slate-300 leading-relaxed space-y-2">
+                                <p class="font-semibold text-white">创建并配置钉钉自定义机器人：</p>
+                                <ol class="list-decimal pl-4 space-y-1 text-slate-400">
+                                    <li>打开钉钉群设置，选择“智能群助手”</li>
+                                    <li>点击“添加机器人”，选择“自定义(Webhook)”</li>
+                                    <li>设置机器人安全设置（如自定义关键词“提醒”或IP限制）</li>
+                                    <li>复制机器人生成的 Webhook 地址</li>
+                                </ol>
+                            </div>
+
+                            <!-- 步骤2内容 -->
+                            <div id="slide6-desc-1" class="text-xs text-slate-300 leading-relaxed space-y-2.5 hidden">
+                                <p class="font-semibold text-white">复制机器人的 Webhook，向 Agent 下达以下指令：</p>
+                                <div class="bg-slate-900/80 border border-white/5 p-3 rounded-lg font-mono text-[11px] text-slate-300 relative group select-all">
+                                    <span id="slide6-cmd-text">请使用mcp，通过这个（https://oapi.dingtalk.com/robot/send?access_token=90d8e737faa0510de4f512d370c4dad9c28e516734f78b177c6c318e8a2d5f74）机器人，在群里发送周报填写提醒：请大家在今天下班前提交周报，并且@全体成员</span>
+                                    <button onclick="copyTextFromElement('slide6-cmd-text', 'copy-btn-ding')" id="copy-btn-ding" class="absolute bottom-1 right-1 bg-white/5 border border-white/10 text-slate-300 px-2 py-0.5 rounded text-[10px] hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">
+                                        复制指令
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-slate-400">
+                                    💡 机器人将调用 Webhook 并利用 MCP 在指定时间在群里发送提醒消息，实现高度自动化的群内跟进。
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="bg-white/5 border border-white/5 rounded-lg p-3 text-[11px] text-slate-400 mt-4">
+                            ⚠️ <strong>安全提示：</strong>Webhook Access Token 具有群发送权限，请妥善保管不要泄露给外部人员。
+                        </div>
+                    </div>
+
+                    <!-- 右侧：截图展示区域 -->
+                    <div class="lg:col-span-7 glass-card no-glow p-4 anim-fade-up delay-200 flex flex-col justify-between">
+                        <div class="text-xs font-mono text-slate-500 border-b border-white/5 pb-2 mb-3" id="slide6-title">
+                            第一步：创建机器人截图 (3.2-1 ~ 3.2-4)
+                        </div>
+                        
+                        <!-- 步骤1多图排版 -->
+                        <div class="flex-grow flex items-center justify-center bg-slate-950/40 rounded-lg border border-white/5 p-2 overflow-hidden h-72 md:h-96" id="slide6-content">
+                            <!-- Step 1 images grid -->
+                            <div class="grid grid-cols-2 gap-2 w-full h-full" id="slide6-img-0">
+                                <div class="flex items-center justify-center overflow-hidden"><img src="sucai/3.2-1.png" class="max-h-full max-w-full object-contain rounded border border-white/5" alt="智能群助手"></div>
+                                <div class="flex items-center justify-center overflow-hidden"><img src="sucai/3.2-2.png" class="max-h-full max-w-full object-contain rounded border border-white/5" alt="添加机器人"></div>
+                                <div class="flex items-center justify-center overflow-hidden"><img src="sucai/3.2-3.png" class="max-h-full max-w-full object-contain rounded border border-white/5" alt="自定义配置"></div>
+                                <div class="flex items-center justify-center overflow-hidden"><img src="sucai/3.2-4.png" class="max-h-full max-w-full object-contain rounded border border-white/5" alt="复制Webhook"></div>
+                            </div>
+                            
+                            <!-- Step 2 images flex -->
+                            <div class="flex flex-col md:flex-row gap-3 w-full h-full justify-center items-center hidden" id="slide6-img-1">
+                                <img src="sucai/3.2-5.png" class="max-h-[45%] md:max-h-full max-w-[90%] md:max-w-[48%] object-contain rounded border border-white/5" alt="发送指令">
+                                <img src="sucai/3.2-6.png" class="max-h-[45%] md:max-h-full max-w-[90%] md:max-w-[48%] object-contain rounded border border-white/5" alt="群消息发送成功">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第7页｜实践场景3: PDF 合并 -->
+        <section class="section" id="sec-7">
+            <div class="bg-grid"></div>
+            <div class="content-box">
+                <div class="text-center mb-4 anim-fade-up">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1"><span class="text-cyan-400">实践 3</span>：Clawhub Skill 本地 PDF 合并</h2>
+                    <p class="text-xs text-slate-400">在 Clawhub 下载 PDF 专用 Skill 到 QoderWork 执行本地文件合并</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                    <!-- 左侧：流程与命令 -->
+                    <div class="lg:col-span-5 flex flex-col justify-between glass-card p-5 anim-fade-up delay-100">
+                        <div class="space-y-4">
+                            <h3 class="text-sm font-semibold text-slate-400 border-b border-white/5 pb-2">操作方法</h3>
+                            
+                            <div class="text-xs text-slate-300 leading-relaxed space-y-3">
+                                <p>
+                                    <strong>步骤说明：</strong>访问 Clawhub 搜索并安装 PDF Skill 库，运行合并指令。
+                                </p>
+                                <div class="bg-white/5 p-3 rounded border border-white/5 space-y-2">
+                                    <div class="text-white font-medium">发送给 QoderWork 对话框指令：</div>
+                                    <div class="bg-slate-900/80 p-2.5 rounded font-mono text-[10px] text-slate-300 relative select-all">
+                                        <span id="slide7-cmd-text">请先帮我安装 https://clawhub.ai/awspace/pdf这个skill 到 QoderWork 的 skills 目录，并且将当前目录下的两个测试pdf合并为一个新的pdf文件</span>
+                                        <button onclick="copyTextFromElement('slide7-cmd-text', 'copy-btn-pdf')" id="copy-btn-pdf" class="absolute bottom-1 right-1 bg-white/5 border border-white/10 text-slate-300 px-2 py-0.5 rounded text-[9px] hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </div>
+                                </div>
+                                <p class="text-slate-400 text-[10px]">
+                                    💡 <strong>工作逻辑：</strong>Agent 自动联网请求 Clawhub，下载 Skill 脚本解压至本地的 skills 文件夹中，识别本地测试 PDF，在后台自动执行 Python 脚本合并输出新文件。
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="bg-white/5 border border-white/5 rounded-lg p-3 text-[11px] text-slate-400 leading-relaxed mt-4">
+                            🔗 <strong>Skill社区地址：</strong><a href="https://clawhub.ai/" target="_blank" class="text-cyan-400 hover:underline">https://clawhub.ai/</a>（部分网络环境需要 VPN 访问）
+                        </div>
+                    </div>
+
+                    <!-- 右侧：对应截图展示 -->
+                    <div class="lg:col-span-7 glass-card no-glow p-4 anim-fade-up delay-200 flex flex-col justify-between">
+                        <div class="flex items-center justify-between border-b border-white/5 pb-2 mb-3">
+                            <span class="text-xs font-mono text-slate-500" id="slide7-title">1. Clawhub 搜索 Skill (3.3-1)</span>
+                            <div class="flex gap-1.5" id="slide7-tabs">
+                                <button onclick="showSlide7Step(0)" class="tab-btn active bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded text-xs">搜索Skill</button>
+                                <button onclick="showSlide7Step(1)" class="tab-btn bg-white/5 text-slate-400 border border-transparent px-2 py-0.5 rounded text-xs">发送安装</button>
+                                <button onclick="showSlide7Step(2)" class="tab-btn bg-white/5 text-slate-400 border border-transparent px-2 py-0.5 rounded text-xs">合并完成</button>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow flex items-center justify-center bg-slate-950/40 rounded-lg border border-white/5 p-2 overflow-hidden h-72 md:h-96" id="slide7-content">
+                            <!-- Step 1 images stacked vertically -->
+                            <div class="flex flex-col gap-2 w-full h-full justify-center items-center" id="slide7-img-0">
+                                <img src="sucai/3.3-1.png" class="max-h-[48%] max-w-full object-contain rounded border border-white/5" alt="Clawhub搜索">
+                                <img src="sucai/3.3-1.2.png" class="max-h-[48%] max-w-full object-contain rounded border border-white/5" alt="Clawhub搜索详情">
+                            </div>
+                            <img src="sucai/3.3-2.png" class="max-h-full max-w-full object-contain rounded border border-white/5 hidden" id="slide7-img-1" alt="指令执行过程">
+                            <img src="sucai/3.3-3.png" class="max-h-full max-w-full object-contain rounded border border-white/5 hidden" id="slide7-img-2" alt="合并输出展示">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第8页｜实践场景4: 手机端发送消息操控电脑 -->
+        <section class="section" id="sec-8">
+            <div class="bg-grid"></div>
+            <div class="content-box">
+                <div class="text-center mb-4 anim-fade-up">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1"><span class="text-cyan-400">实践 4</span>：消息渠道配置（手机端遥控电脑工作）</h2>
+                    <p class="text-xs text-slate-400">通过微信/钉钉消息通道，直接在手机上控制电脑端 Agent 执行本地任务</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                    <!-- 左侧说明 -->
+                    <div class="lg:col-span-5 flex flex-col justify-between glass-card p-5 anim-fade-up delay-100">
+                        <div class="space-y-3 text-xs md:text-sm">
+                            <h3 class="text-base font-semibold text-white border-b border-white/5 pb-2">消息通道配置</h3>
+                            <p class="text-slate-300 leading-relaxed">
+                                通过在 QoderWork 配置即时通讯通道，可以将你的个人微信或钉钉变成 Agent 的远程对话入口。
+                            </p>
+                            <ul class="space-y-2 text-slate-400 list-disc pl-4 text-xs">
+                                <li><strong>推荐通道：</strong>首选微信，扫码即可绑定。</li>
+                                <li><strong>钉钉通道：</strong>钉钉配置由于涉及组织限制，一般需要对应的权限申请。</li>
+                                <li><strong>运行限制：</strong>此方式下，受控的桌面电脑需保持在开机并处于活跃（未休眠）状态。</li>
+                            </ul>
+                            <div class="bg-white/5 p-3 rounded-lg border border-white/5 text-xs text-cyan-400/90 leading-relaxed font-light">
+                                📱 <strong>移动协同场景：</strong>在上班路上或家里，通过微信聊天直接给电脑发一条消息，电脑端的 Agent 就能把表格算好、文案改好，实现极其便捷的无缝移动办公！
+                            </div>
+                        </div>
+
+                        <div class="text-[10px] text-slate-500 mt-4 border-t border-white/5 pt-2">
+                            * 手机指令发送会通过微信/钉钉中继传输，保证传输通道的安全性。
+                        </div>
+                    </div>
+
+                    <!-- 右侧：桌面和移动界面混合排版 -->
+                    <div class="lg:col-span-7 flex flex-col md:flex-row gap-4 items-stretch justify-center anim-fade-up delay-200">
+                        <!-- 桌面端设置 -->
+                        <div class="flex-1 glass-card no-glow p-3 flex flex-col justify-between">
+                            <div class="text-[10px] font-mono text-slate-500 mb-1.5 border-b border-white/5 pb-1">Desktop Settings (3.4-1 & 3.4-3)</div>
+                            <div class="flex-grow flex flex-col gap-2 justify-center">
+                                <div class="flex-1 flex items-center justify-center overflow-hidden bg-slate-950/40 rounded border border-white/5 p-1"><img src="sucai/3.4-1.png" class="max-h-32 object-contain" alt="桌面端消息渠道配置"></div>
+                                <div class="flex-1 flex items-center justify-center overflow-hidden bg-slate-950/40 rounded border border-white/5 p-1"><img src="sucai/3.4-3.png" class="max-h-32 object-contain" alt="桌面端运行情况"></div>
+                            </div>
+                        </div>
+
+                        <!-- 手机模拟器显示 3.4-2.png -->
+                        <div class="w-64 mx-auto shrink-0 flex flex-col items-center">
+                            <div class="text-[10px] font-mono text-slate-500 mb-1.5">Mobile View (3.4-2.png)</div>
+                            <div class="phone-mockup w-full h-[320px] md:h-[390px] p-2 flex items-center justify-center bg-slate-950">
+                                <div class="phone-notch"></div>
+                                <img src="sucai/3.4-2.png" class="h-full w-full object-contain rounded-lg" alt="手机聊天框遥控截图">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第9页｜额度用完配置与Workbuddy配置 -->
+        <section class="section" id="sec-9">
+            <div class="bg-grid"></div>
+            <div class="content-box">
+                <div class="text-center mb-4 anim-fade-up">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1">Qoderwork 额度用完了怎么办？</h2>
+                    <p class="text-xs text-slate-400">下载 Workbuddy 先白嫖额度，或者自己手动配置文件修改 SenseNova 大模型</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+                    <!-- 左侧：模型配置文件编写 -->
+                    <div class="lg:col-span-6 flex flex-col justify-between glass-card p-5 anim-fade-up delay-100">
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold text-slate-400 border-b border-white/5 pb-2">自定义 OpenAI 兼容模型配置</h3>
+                            
+                            <div class="text-xs text-slate-300 leading-relaxed space-y-2">
+                                <p><strong>配置步骤：</strong></p>
+                                <ol class="list-decimal pl-4 space-y-1 text-slate-400">
+                                    <li>下载 Workbuddy 应用程序</li>
+                                    <li>打开或创建本地模型配置文件：<code class="text-cyan-400 font-mono">~/.workbuddy/models.json</code></li>
+                                    <li>替换为以下 SenseNova 模型配置（需将 <code class="text-pink-400">你的api_key</code> 替换为后文申领的Key）：</li>
+                                </ol>
+                                
+                                <div class="bg-slate-900/80 border border-white/5 rounded-lg p-2.5 relative group font-mono text-[10px] text-slate-300 overflow-y-auto max-h-48 custom-scroll select-all">
+<pre id="slide9-config-text">{
+  "models": [
+    {
+      "id": "deepseek-v4-flash", 
+      "name": "deepseek-v4-flash",
+      "vendor": "SenseNova",
+      "apiKey": "你的api_key", 
+      "url": "https://token.sensenova.cn/v1/chat/completions",
+      "maxInputTokens": 131072,
+      "maxOutputTokens": 8192,
+      "supportsToolCall": false,
+      "supportsImages": false,
+      "supportsReasoning": false
+    }
+  ]
+}</pre>
+                                    <button onclick="copyTextFromElement('slide9-config-text', 'copy-btn-json')" id="copy-btn-json" class="absolute top-1.5 right-1.5 bg-white/5 border border-white/10 text-slate-300 px-2 py-0.5 rounded text-[9px] hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">
+                                        复制配置
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-slate-400">
+                                    💡 <strong>模型替换支持：</strong>可复制名称 <code class="text-cyan-400">sensenova-6.7-flash-lite</code>、<code class="text-cyan-400">sensenova-u1-fast</code>、<code class="text-cyan-400">deepseek-v4-flash</code> 并在配置文件中替换。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：模型配置截图 -->
+                    <div class="lg:col-span-6 glass-card no-glow p-4 anim-fade-up delay-200 flex flex-col justify-between">
+                        <div class="text-xs font-mono text-slate-500 border-b border-white/5 pb-2 mb-2">
+                            WorkBuddy 自定义模型配置路径截图 (4-1.png & 4-2.png)
+                        </div>
+                        <div class="flex-grow flex flex-col gap-2 justify-center">
+                            <div class="flex-1 flex items-center justify-center overflow-hidden bg-slate-950/40 rounded border border-white/5 p-1"><img src="sucai/4-1.png" class="max-h-36 object-contain" alt="自定义模型界面截图1"></div>
+                            <div class="flex-1 flex items-center justify-center overflow-hidden bg-slate-950/40 rounded border border-white/5 p-1"><img src="sucai/4-2.png" class="max-h-36 object-contain" alt="自定义模型界面截图2"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第10页｜商汤日日新 platform API key 领取 -->
+        <section class="section" id="sec-10">
+            <div class="bg-grid"></div>
+            <div class="content-box">
+                <div class="text-center mb-4 anim-fade-up">
+                    <h2 class="text-2xl md:text-3xl font-bold text-white mb-1">商汤日日新平台 API Key 极速领取</h2>
+                    <p class="text-xs text-slate-400">目前平台在公测中，以下为大家申请了一批 API Key。也可自行注册领取：<a href="https://platform.sensenova.cn/console/keys" target="_blank" class="text-cyan-400 hover:underline">点击进入官网</a></p>
+                </div>
+
+                <div class="glass-card max-w-5xl mx-auto p-4 bg-black/40 border border-white/5 anim-fade-up delay-100">
+                    <!-- 表格滚动区域 -->
+                    <div class="overflow-y-auto max-h-[50vh] custom-scroll">
+                        <table class="w-full text-left font-mono text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-white/10 text-slate-400 sticky top-0 bg-slate-950/90 z-20">
+                                    <th class="py-2.5 px-3">序号</th>
+                                    <th class="py-2.5 px-3 w-3/5">api_key</th>
+                                    <th class="py-2.5 px-3">使用状态</th>
+                                    <th class="py-2.5 px-3 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody class="text-slate-300 divide-y divide-white/5">
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">1</td>
+                                    <td class="py-2 px-3 select-all">sk-Gm2VPAmsP8tgCI9W9V8nEsUo5PEldqpZ</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-pink-500/10 text-pink-400 text-[10px]">已领取</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-Gm2VPAmsP8tgCI9W9V8nEsUo5PEldqpZ', 'key-c-1')" id="key-c-1" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">2</td>
+                                    <td class="py-2 px-3 select-all">sk-Jwm9naQqrBET1ah8skvmOfmkVgqw2km4</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-Jwm9naQqrBET1ah8skvmOfmkVgqw2km4', 'key-c-2')" id="key-c-2" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">3</td>
+                                    <td class="py-2 px-3 select-all">sk-nJPpoS2EBNm92lzTnu9cxvtaKYjqORho</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-nJPpoS2EBNm92lzTnu9cxvtaKYjqORho', 'key-c-3')" id="key-c-3" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">4</td>
+                                    <td class="py-2 px-3 select-all">sk-PdFmZTmgZzYkgdqsNLStCdPAZtOGeUfF</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-PdFmZTmgZzYkgdqsNLStCdPAZtOGeUfF', 'key-c-4')" id="key-c-4" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">5</td>
+                                    <td class="py-2 px-3 select-all">sk-HQxRmK8X4jLgMnjCvfzYGXmXl5m5pSry</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-HQxRmK8X4jLgMnjCvfzYGXmXl5m5pSry', 'key-c-5')" id="key-c-5" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">6</td>
+                                    <td class="py-2 px-3 select-all">sk-I6aFIFDHMqPjHospBrhIalE7PxJ4jllq</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-I6aFIFDHMqPjHospBrhIalE7PxJ4jllq', 'key-c-6')" id="key-c-6" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">7</td>
+                                    <td class="py-2 px-3 select-all">sk-CmS7KQAutWqe6r58MyNjaWKh6uLH7oQd</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-CmS7KQAutWqe6r58MyNjaWKh6uLH7oQd', 'key-c-7')" id="key-c-7" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">8</td>
+                                    <td class="py-2 px-3 select-all">sk-6kYSYFo9J1UeSFoN5U5kjdxJFolyNgnT</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-6kYSYFo9J1UeSFoN5U5kjdxJFolyNgnT', 'key-c-8')" id="key-c-8" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">9</td>
+                                    <td class="py-2 px-3 select-all">sk-sTygogWsibQ84cXSCtYytoKdIOfWLHD3</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-sTygogWsibQ84cXSCtYytoKdIOfWLHD3', 'key-c-9')" id="key-c-9" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">10</td>
+                                    <td class="py-2 px-3 select-all">sk-M6QTdCl44f9qnmbFR65E7j8NRX4pFu7m</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-M6QTdCl44f9qnmbFR65E7j8NRX4pFu7m', 'key-c-10')" id="key-c-10" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">11</td>
+                                    <td class="py-2 px-3 select-all">sk-WEQo1hN2Xd33OL8RxC4JdKDNfUbnHxdY</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-WEQo1hN2Xd33OL8RxC4JdKDNfUbnHxdY', 'key-c-11')" id="key-c-11" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">12</td>
+                                    <td class="py-2 px-3 select-all">sk-dajsJYq9u5CmxipcvJ3ogcX6hxV8CMPa</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-dajsJYq9u5CmxipcvJ3ogcX6hxV8CMPa', 'key-c-12')" id="key-c-12" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">13</td>
+                                    <td class="py-2 px-3 select-all">sk-F9sOM6YxcwbpDHRCGClvd8EJLbjxKofD</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-F9sOM6YxcwbpDHRCGClvd8EJLbjxKofD', 'key-c-13')" id="key-c-13" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">14</td>
+                                    <td class="py-2 px-3 select-all">sk-DdBlMlsAoGBZB1niaRPn9FEf15GKntgk</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-DdBlMlsAoGBZB1niaRPn9FEf15GKntgk', 'key-c-14')" id="key-c-14" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-white/5 transition-colors">
+                                    <td class="py-2 px-3 text-slate-500">15</td>
+                                    <td class="py-2 px-3 select-all">sk-vIqGirMznrRxCiTHjMnpUZnleSdsIswt</td>
+                                    <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px]">空闲</span></td>
+                                    <td class="py-2 px-3 text-right">
+                                        <button onclick="copyText('sk-vIqGirMznrRxCiTHjMnpUZnleSdsIswt', 'key-c-15')" id="key-c-15" class="bg-white/5 border border-white/10 px-2 py-0.5 rounded hover:bg-cyan-500/20 hover:text-cyan-400 transition-colors">复制</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第11页｜写在最后与附录 -->
+        <section class="section" id="sec-11">
+            <div class="bg-grid"></div>
+            <div class="bg-glow-center"></div>
+            <div class="content-box">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch max-w-5xl mx-auto">
+                    <!-- Left Column: 写在最后 -->
+                    <div class="glass-card p-8 flex flex-col justify-between anim-fade-up delay-100 relative overflow-hidden group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-cyan-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                                <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.757c1.27 0 2.429-.99 2.585-2.257l.635-5.172A2 2 0 0020.007.414H3.993a2 2 0 00-1.97 2.157l.635 5.172A2.257 2.257 0 005.243 10H10v10a2 2 0 002 2h0a2 2 0 002-2V10z"></path></svg>
+                                写在最后
+                            </h3>
+                            <p class="text-slate-300 leading-relaxed text-sm md:text-base mb-6">
+                                如果大家在日常 AI 工具使用、环境配置、或者在具体业务流程遇到卡点，需要 AI 进行效能提升的话，请在群中随时 <span class="text-cyan-400 font-bold border-b border-cyan-500/20 pb-0.5">@陈鑫</span>。我会及时提供技术支持，帮助大家打通提效路径！
+                            </p>
+                        </div>
+                        <div class="text-xs text-slate-500 pt-4 border-t border-white/5">
+                            💡 让 AI 从“单点解答”扩展到“全工作流覆盖”
+                        </div>
+                    </div>
+
+                    <!-- Right Column: 附录链接 -->
+                    <div class="glass-card p-8 flex flex-col justify-between anim-fade-up delay-200 relative overflow-hidden group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-indigo-500 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
+                        <div>
+                            <h3 class="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                                <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                                附录：本文档资源链接
+                            </h3>
+                            <div class="space-y-3">
+                                <a href="https://mcp.dingtalk.com" target="_blank" class="flex items-center justify-between p-3 rounded bg-white/5 border border-white/5 hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group/link">
+                                    <div>
+                                        <div class="text-xs text-slate-200 font-bold">钉钉官方 MCP 服务广场</div>
+                                        <div class="text-[10px] text-slate-500 mt-0.5">https://mcp.dingtalk.com</div>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-500 group-hover/link:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </a>
+                                <a href="https://clawhub.ai/" target="_blank" class="flex items-center justify-between p-3 rounded bg-white/5 border border-white/5 hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group/link">
+                                    <div>
+                                        <div class="text-xs text-slate-200 font-bold">OpenClaw 官方 Skill 技能社区</div>
+                                        <div class="text-[10px] text-slate-500 mt-0.5">https://clawhub.ai/</div>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-500 group-hover/link:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </a>
+                                <a href="https://platform.sensenova.cn/console/keys" target="_blank" class="flex items-center justify-between p-3 rounded bg-white/5 border border-white/5 hover:border-cyan-500/30 hover:bg-cyan-500/5 transition-all group/link">
+                                    <div>
+                                        <div class="text-xs text-slate-200 font-bold">商汤日日新开发者平台</div>
+                                        <div class="text-[10px] text-slate-500 mt-0.5">https://platform.sensenova.cn/console/keys</div>
+                                    </div>
+                                    <svg class="w-4 h-4 text-slate-500 group-hover/link:text-cyan-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 第12页｜结束页 -->
+        <section class="section" id="sec-12">
+            <div class="bg-grid"></div>
+            <div class="bg-glow-center"></div>
+            <div class="content-box flex flex-col items-center justify-center text-center">
+                <div class="anim-fade-up space-y-4">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-mono tracking-wider">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        PRESENTATION COMPLETED
+                    </div>
+                    <h2 class="text-4xl md:text-6xl font-bold tracking-tight text-gradient pb-2 text-glow">
+                        谢谢大家！
+                    </h2>
+                    <p class="text-slate-400 font-light text-sm md:text-lg max-w-md mx-auto">
+                        高效办公，让 AI 释放更多创造力
+                    </p>
+                    
+                    <!-- 分割线 -->
+                    <div class="w-16 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent mx-auto my-6"></div>
+                    
+                    <p class="text-slate-500 font-mono text-xs">
+                        © 2026 市场运营部 · 教师发展组 · 陈鑫
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+        <script>
+        // 全局剪贴板复制提示函数
+        function copyText(text, btnId) {
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById(btnId);
+                const originalText = btn.innerHTML;
+                btn.innerHTML = `<span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>已复制</span>`;
+                btn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/30');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/30');
+                }, 1500);
+            });
+        }
+
+        // 从指定元素文本中复制
+        function copyTextFromElement(elementId, btnId) {
+            const el = document.getElementById(elementId);
+            const text = el.innerText || el.textContent;
+            copyText(text.trim(), btnId);
+        }
+
+        // 第2页：选项卡图片切换控制
+        function showSlide2Image(index) {
+            const tabs = document.querySelectorAll('#slide2-tabs .tab-btn');
+            const imgs = document.querySelectorAll('#slide2-imgs img');
+            
+            tabs.forEach((tab, i) => {
+                if (i === index) {
+                    tab.classList.add('active', 'bg-cyan-500/10', 'text-cyan-400', 'border-cyan-500/20');
+                    tab.classList.remove('bg-white/5', 'text-slate-400', 'border-transparent');
+                } else {
+                    tab.classList.remove('active', 'bg-cyan-500/10', 'text-cyan-400', 'border-cyan-500/20');
+                    tab.classList.add('bg-white/5', 'text-slate-400', 'border-transparent');
+                }
+            });
+            
+            imgs.forEach((img, i) => {
+                if (i === index) {
+                    img.classList.remove('hidden');
+                } else {
+                    img.classList.add('hidden');
+                }
+            });
+        }
+
+        // 第5页：操作指引步骤切换控制
+        function showSlide5Step(index) {
+            const tabs = document.querySelectorAll('#slide5-tabs .tab-btn');
+            const stepTitles = [
+                "Step 1: 访问钉钉MCP广场 (3.1-1.png & 3.1-2.png)",
+                "Step 2: 配置 Qoderwork (3.1-3.png)",
+                "Step 3: 测试与读取 (3.1-4.png & 3.1-5.png)"
+            ];
+            
+            tabs.forEach((tab, i) => {
+                const stepSpan = tab.querySelector('span');
+                if (i === index) {
+                    tab.classList.add('active', 'bg-cyan-500/10', 'text-cyan-400', 'border-cyan-500/20');
+                    tab.classList.remove('bg-white/5', 'text-slate-400', 'border-transparent');
+                    if (stepSpan) {
+                        stepSpan.classList.add('bg-cyan-400', 'text-slate-900');
+                        stepSpan.classList.remove('bg-slate-800', 'text-slate-400');
+                    }
+                } else {
+                    tab.classList.remove('active', 'bg-cyan-500/10', 'text-cyan-400', 'border-cyan-500/20');
+                    tab.classList.add('bg-white/5', 'text-slate-400', 'border-transparent');
+                    if (stepSpan) {
+                        stepSpan.classList.remove('bg-cyan-400', 'text-slate-900');
+                        stepSpan.classList.add('bg-slate-800', 'text-slate-400');
+                    }
+                }
+            });
+            
+            // Toggle step images
+            for (let i = 0; i < 3; i++) {
+                const imgContainer = document.getElementById(`slide5-img-${i}`);
+                if (imgContainer) {
+                    if (i === index) {
+                        imgContainer.classList.remove('hidden');
+                    } else {
+                        imgContainer.classList.add('hidden');
+                    }
+                }
+            }
+            
+            const titleEl = document.getElementById('slide5-title');
+            if (titleEl) {
+                titleEl.textContent = stepTitles[index];
+            }
+        }
+
+        // 第6页：机器人配置步骤切换控制
+        function showSlide6Step(index) {
+            const tabs = document.querySelectorAll('#slide6-tabs .tab-btn');
+            const stepTitles = [
+                "第一步：创建机器人截图 (3.2-1 ~ 3.2-4)",
+                "第二步：指令发送与群消息测试 (3.2-5 & 3.2-6)"
+            ];
+            
+            tabs.forEach((tab, i) => {
+                if (i === index) {
+                    tab.classList.add('active', 'font-bold', 'text-cyan-400', 'border-cyan-500');
+                    tab.classList.remove('text-slate-400', 'border-transparent');
+                } else {
+                    tab.classList.remove('active', 'font-bold', 'text-cyan-400', 'border-cyan-500');
+                    tab.classList.add('text-slate-400', 'border-transparent');
+                }
+            });
+            
+            // Toggle description divs and image divs
+            for (let i = 0; i < 2; i++) {
+                const descEl = document.getElementById(`slide6-desc-${i}`);
+                const imgEl = document.getElementById(`slide6-img-${i}`);
+                if (descEl) {
+                    if (i === index) descEl.classList.remove('hidden');
+                    else descEl.classList.add('hidden');
+                }
+                if (imgEl) {
+                    if (i === index) imgEl.classList.remove('hidden');
+                    else imgEl.classList.add('hidden');
+                }
+            }
+            
+            const titleEl = document.getElementById('slide6-title');
+            if (titleEl) {
+                titleEl.textContent = stepTitles[index];
+            }
+        }
+
+        // 第7页：PDF合并步骤切换控制
+        function showSlide7Step(index) {
+            const tabs = document.querySelectorAll('#slide7-tabs .tab-btn');
+            const titles = [
+                "1. Clawhub 搜索 Skill (3.3-1)",
+                "2. 发送 Skill 下载与运行指令 (3.3-2)",
+                "3. 合并 PDF 结果输出 (3.3-3)"
+            ];
+            
+            tabs.forEach((tab, i) => {
+                if (i === index) {
+                    tab.classList.add('active', 'bg-cyan-500/10', 'text-cyan-400', 'border-cyan-500/20');
+                    tab.classList.remove('bg-white/5', 'text-slate-400', 'border-transparent');
+                } else {
+                    tab.classList.remove('active', 'bg-cyan-500/10', 'text-cyan-400', 'border-cyan-500/20');
+                    tab.classList.add('bg-white/5', 'text-slate-400', 'border-transparent');
+                }
+            });
+            
+            for (let i = 0; i < 3; i++) {
+                const imgEl = document.getElementById(`slide7-img-${i}`);
+                if (imgEl) {
+                    if (i === index) imgEl.classList.remove('hidden');
+                    else imgEl.classList.add('hidden');
+                }
+            }
+            
+            const titleEl = document.getElementById('slide7-title');
+            if (titleEl) {
+                titleEl.textContent = titles[index];
+            }
+        }
+
+        // 主屏滑动引擎与全局图片放大逻辑
+        document.addEventListener('DOMContentLoaded', () => {
+            const container = document.getElementById('scroll-container');
+            const sections = document.querySelectorAll('.section');
+            const navDotsContainer = document.getElementById('nav-dots');
+            const isMobile = window.matchMedia('(max-width: 768px)').matches;
+            
+            let currentSection = 0;
+            const totalSections = sections.length;
+            let isScrolling = false;
+            let scrollTimeout;
+
+            // 侧栏指示点名称映射
+            const sectionNames = [
+                "封面/前言",
+                "逻辑机制",
+                "环境区别",
+                "Skill & MCP",
+                "日志读取总结",
+                "钉钉机器人",
+                "PDF合并",
+                "手机端遥控",
+                "额度与模型配置",
+                "API Key 申领",
+                "结尾与附录",
+                "谢谢大家"
+            ];
+
+            // --- 全局图片放大 (Lightbox) ---
+            const lightbox = document.createElement('div');
+            lightbox.id = 'lightbox';
+            lightbox.className = 'fixed inset-0 bg-black/90 z-[999] hidden flex items-center justify-center cursor-zoom-out opacity-0 transition-opacity duration-300';
+            lightbox.innerHTML = `
+                <div class="relative flex items-center justify-center">
+                    <img id="lightbox-img" class="max-w-[90vw] max-h-[82vh] object-contain rounded border border-white/10 shadow-2xl scale-95 transition-transform duration-300" src="" alt="放大图片">
+                    <button class="absolute -top-10 right-0 bg-black/60 backdrop-blur-md text-slate-300 hover:text-white text-xs md:text-sm flex items-center gap-1 font-sans focus:outline-none transition-all px-2.5 py-1 rounded-full border border-white/10 hover:bg-cyan-500/20 hover:text-cyan-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        关闭 (ESC)
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(lightbox);
+            const lightboxImg = document.getElementById('lightbox-img');
+
+            // 监听所有图片的点击事件
+            document.querySelectorAll('.section img').forEach(img => {
+                img.classList.add('cursor-zoom-in');
+                img.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    lightboxImg.src = img.src;
+                    lightbox.classList.remove('hidden');
+                    setTimeout(() => {
+                        lightbox.classList.remove('opacity-0');
+                        lightboxImg.classList.remove('scale-95');
+                    }, 50);
+                });
+            });
+
+            // 关闭 lightbox
+            function closeLightbox() {
+                lightbox.classList.add('opacity-0');
+                lightboxImg.classList.add('scale-95');
+                setTimeout(() => {
+                    lightbox.classList.add('hidden');
+                }, 300);
+            }
+
+            lightbox.addEventListener('click', closeLightbox);
+            
+            // 按 ESC 键关闭 lightbox
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeLightbox();
+                }
+            });
+
+            // 手机端：启用原生垂直滚动，跳过动画和滑屏机制
+            if (isMobile) {
+                navDotsContainer.style.display = 'none';
+                container.style.transform = 'none';
+                container.style.transition = 'none';
+                sections.forEach((sec) => sec.classList.add('active'));
+                return;
+            }
+
+            // 创建导航指示点
+            sections.forEach((_, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'nav-dot';
+                dot.setAttribute('data-tooltip', sectionNames[index] || `第 ${index + 1} 页`);
+                dot.addEventListener('click', () => {
+                    scrollToSection(index);
+                });
+                navDotsContainer.appendChild(dot);
+            });
+            const dots = document.querySelectorAll('.nav-dot');
+
+            function updateActiveState() {
+                sections.forEach((sec, index) => {
+                    if (index === currentSection) {
+                        sec.classList.add('active');
+                    } else {
+                        sec.classList.remove('active'); 
+                    }
+                });
+                dots.forEach((dot, index) => {
+                    if (index === currentSection) {
+                        dot.classList.add('active');
+                    } else {
+                        dot.classList.remove('active');
+                    }
+                });
+            }
+
+            function scrollToSection(index) {
+                if (index < 0 || index >= totalSections || isScrolling) return;
+                
+                isScrolling = true;
+                currentSection = index;
+                
+                container.style.transform = `translateY(-${currentSection * 100}vh)`;
+                updateActiveState();
+
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    isScrolling = false;
+                }, 900); // 配合 0.8s transition 留出缓冲
+            }
+
+            // 鼠标滚轮监听
+            window.addEventListener('wheel', (e) => {
+                if (!lightbox.classList.contains('hidden')) return; // 放大图片时不滑动
+                e.preventDefault();
+                if (isScrolling) return;
+                
+                if (e.deltaY > 30) {
+                    scrollToSection(currentSection + 1); // 向下滚动
+                } else if (e.deltaY < -30) {
+                    scrollToSection(currentSection - 1); // 向上滚动
+                }
+            }, { passive: false }); 
+
+            // 键盘事件监听
+            window.addEventListener('keydown', (e) => {
+                if (!lightbox.classList.contains('hidden')) return; // 放大图片时不按键切换幻灯片
+                if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') {
+                    scrollToSection(currentSection + 1);
+                } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                    scrollToSection(currentSection - 1);
+                }
+            });
+
+            // 移动端轻扫触摸检测
+            let touchStartY = 0;
+            window.addEventListener('touchstart', (e) => {
+                touchStartY = e.touches[0].clientY;
+            }, { passive: true });
+
+            window.addEventListener('touchend', (e) => {
+                if (!lightbox.classList.contains('hidden')) return; // 放大图片时不滑动
+                if (isScrolling) return;
+                let touchEndY = e.changedTouches[0].clientY;
+                let deltaY = touchStartY - touchEndY;
+                
+                if (deltaY > 50) {
+                    scrollToSection(currentSection + 1);
+                } else if (deltaY < -50) {
+                    scrollToSection(currentSection - 1);
+                }
+            }, { passive: true });
+
+            // --- 主题切换控制 ---
+            const themeToggleBtn = document.getElementById('theme-toggle');
+            const sunIcon = document.getElementById('theme-toggle-sun');
+            const moonIcon = document.getElementById('theme-toggle-moon');
+
+            // 检查本地存储的主题偏好，若无默认为暗色
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.body.classList.add('light');
+                sunIcon.classList.add('rotate-90', 'scale-0');
+                sunIcon.classList.remove('rotate-0', 'scale-100');
+                moonIcon.classList.add('rotate-0', 'scale-100');
+                moonIcon.classList.remove('-rotate-90', 'scale-0');
+            }
+
+            themeToggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡到 lightbox 等其他监听器
+                
+                if (document.body.classList.contains('light')) {
+                    // 切换回暗色
+                    document.body.classList.remove('light');
+                    localStorage.setItem('theme', 'dark');
+                    
+                    // 图标动画：太阳出现，月亮转出
+                    sunIcon.classList.add('rotate-0', 'scale-100');
+                    sunIcon.classList.remove('rotate-90', 'scale-0');
+                    moonIcon.classList.add('-rotate-90', 'scale-0');
+                    moonIcon.classList.remove('rotate-0', 'scale-100');
+                } else {
+                    // 切换到亮色
+                    document.body.classList.add('light');
+                    localStorage.setItem('theme', 'light');
+                    
+                    // 图标动画：太阳转出，月亮出现
+                    sunIcon.classList.add('rotate-90', 'scale-0');
+                    sunIcon.classList.remove('rotate-0', 'scale-100');
+                    moonIcon.classList.add('rotate-0', 'scale-100');
+                    moonIcon.classList.remove('-rotate-90', 'scale-0');
+                }
+            });
+
+            // 初始化显示第一屏
+            updateActiveState();
+        });
+    </script>
+</body>
+</html>

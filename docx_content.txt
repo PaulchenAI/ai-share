@@ -1,0 +1,133 @@
+【Ai分享】- 5.25
+前言：
+在日常工作中，我们已经开始接触和使用多种 Agent 工具，例如 ArkClaw（云端运行）、QoderWork/Workbuddy（本地应用） 等。
+这些工具虽然形态不同，有的是云端平台，有的是桌面端应用，但它们的本质上是一致的：基于大模型能力构建的 Agent 框架，agent产品的任务交付质量取决于：模型+框架本身。
+传统大模型更像是“问答助手”（例如豆包），用户提出一个问题，模型给出一段回答；而 Agent 工具，它会根据用户给出的目标，自动拆解任务、规划步骤、调用工具、读取文件、修改内容，并在过程中不断根据结果进行调整，最终帮助用户完成一个相对完整的工作任务。因此，Agent 工具的核心价值是让大模型具备更强的任务理解、过程执行和结果交付能力。
+
+Agent产品的底层逻辑
+长链路任务执行
+Agent 的执行过程通常包括：用户提出目标 → Agent 理解任务(意图识别) → 拆解步骤 → 调用工具或读取资料 → 生成阶段结果 → 根据反馈继续修正 → 输出最终结果。
+Coding 方式执行任务
+Agent执行任务的本质是通过任务拆分为具体的节点：比如下图的（任务：读取PDF，总结关键点），并且在每个具体节点通过调用函数/依赖库/skills/mcp来完成任务
+
+
+
+
+云端agent与桌面端agent产品的区别
+ArkClaw 和 QoderWork / WorkBuddy 的核心区别，在于它们的执行环境不同。ArkClaw 更偏云端 Agent，优势是 7×24 在线、远程触发、跨设备使用；而 QoderWork / WorkBuddy 更偏桌面端 Agent，优势是可以直接接触本地文件和办公环境，适合处理 Excel、文档、代码仓库、素材文件等具体工作任务。
+所以 ArkClaw 更适合做“云端长期任务助手”，QoderWork / WorkBuddy 更适合做“本地办公执行助手”。
+
+Qoderwork 适合哪些日常任务？
+💡 前置知识
+概念
+通俗理解
+解决什么问题
+Skill
+给 Agent 准备好的“专项技能包”
+让 Agent 知道遇到某类任务时，应该怎么做、用什么步骤、生成什么脚本
+MCP
+让 Agent 连接外部工具的“插头/接口协议”
+让 Agent 能调用本地文件、数据库、浏览器、终端、企业系统等外部能力
+日志读取，总结
+Step 1: 访问：https://mcp.dingtalk.com  ->  登录钉钉账号-> 在MCP广场查看 MCP 服务，找到钉钉日志,复制配置代码
+
+
+Step 2:  发给Qoderwork 进行配置
+
+Step 3:  测试，读取日志
+
+
+
+钉钉机器人MCP发送群消息，@全体成员
+
+
+创建并配置钉钉自定义机器人：
+
+
+复制机器人的Webhook，可参考如下指令：
+请使用mcp，通过这个（https://oapi.dingtalk.com/robot/send?access_token=90d8e737faa0510de4f512d370c4dad9c28e516734f78b177c6c318e8a2d5f74）机器人，在群里发送周报填写提醒：请大家在今天下班前提交周报，并且@全体成员
+
+
+PDF合并
+步骤：在clawhub(https://clawhub.ai/, 需要vpn) 上搜索pdf相关skill, 并且发送给Qoderwork：
+请先帮我安装 https://clawhub.ai/awspace/pdf这个skill 到 QoderWork 的 skills 目录，并且将当前目录下的两个测试pdf合并为一个新的pdf文件
+
+
+
+消息渠道配置（手机操控电脑工作）：
+通过配置消息渠道，可以通过手机发送消息到电脑端的Qoderwork处理任务，最好配置微信，钉钉配置需要权限申请，同时需要保持电脑活跃状态。
+
+
+
+
+
+
+Qoderwork 额度用完了怎么办？
+下载 Workbuddy 先白嫖额度
+自己配置模型，如下图：
+
+下面内容复制给Workbuddy，发送给模型前请替换 apiKey ( 后文领取 )！
+在 WorkBuddy 中配置 OpenAI 兼容模型，请按以下步骤操作：1. 配置文件路径~/.workbuddy/models.json2.配置 SenseNova 模型{  "models": [    {      "id": "deepseek-v4-flash",       "name": "deepseek-v4-flash",      "vendor": "SenseNova",      "apiKey": "你的api_key",       "url": "https://token.sensenova.cn/v1/chat/completions",      "maxInputTokens": 131072,      "maxOutputTokens": 8192,      "supportsToolCall": false,      "supportsImages": false,      "supportsReasoning": false    }  ]}
+模型支持：sensenova-6.7-flash-lite/sensenova-u1-fast/deepseek-v4-flash，名称复制给Workbuddy替换即可。
+
+
+目前商汤日日新平台在公测中，给大家申请了一批 api: 
+大家也可以自行注册领取：https://platform.sensenova.cn/console/keys
+序号
+api_key
+是否使用
+1
+sk-Gm2VPAmsP8tgCI9W9V8nEsUo5PEldqpZ
+已领取
+
+2
+sk-Jwm9naQqrBET1ah8skvmOfmkVgqw2km4
+
+3
+sk-nJPpoS2EBNm92lzTnu9cxvtaKYjqORho
+
+4
+sk-PdFmZTmgZzYkgdqsNLStCdPAZtOGeUfF
+
+5
+sk-HQxRmK8X4jLgMnjCvfzYGXmXl5m5pSry
+
+6
+sk-I6aFIFDHMqPjHospBrhIalE7PxJ4jllq
+
+7
+sk-CmS7KQAutWqe6r58MyNjaWKh6uLH7oQd
+
+8
+sk-6kYSYFo9J1UeSFoN5U5kjdxJFolyNgnT
+
+9
+sk-sTygogWsibQ84cXSCtYytoKdIOfWLHD3
+
+10
+sk-M6QTdCl44f9qnmbFR65E7j8NRX4pFu7m
+
+11
+sk-WEQo1hN2Xd33OL8RxC4JdKDNfUbnHxdY
+
+12
+sk-dajsJYq9u5CmxipcvJ3ogcX6hxV8CMPa
+
+13
+sk-F9sOM6YxcwbpDHRCGClvd8EJLbjxKofD
+
+14
+sk-DdBlMlsAoGBZB1niaRPn9FEf15GKntgk
+
+15
+sk-vIqGirMznrRxCiTHjMnpUZnleSdsIswt
+
+写在最后
+如果大家有任何关于AI工具使用，环境配置，业务流程卡点需要ai工具提效的地方都可以提出@陈鑫，我会及时帮助大家。
+
+附录
+本文档涉及到的所有地址链接：
+钉钉官方mcp :https://mcp.dingtalk.com
+openclaw官方skill社区：https://clawhub.ai/
+商汤日日新平台：https://platform.sensenova.cn/console/keys
+
