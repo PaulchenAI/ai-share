@@ -1054,15 +1054,20 @@
                             <h3 class="text-sm font-semibold text-slate-400 border-b border-white/5 pb-2">自定义 OpenAI 兼容模型配置</h3>
                             
                             <div class="text-xs text-slate-300 leading-relaxed space-y-2">
-                                <p><strong>配置步骤：</strong></p>
+                                <p class="font-semibold text-white">在 WorkBuddy 中配置 OpenAI 兼容模型，请按以下步骤操作：</p>
                                 <ol class="list-decimal pl-4 space-y-1 text-slate-400">
-                                    <li>下载 Workbuddy 应用程序</li>
-                                    <li>打开或创建本地模型配置文件：<code class="text-cyan-400 font-mono">~/.workbuddy/models.json</code></li>
-                                    <li>替换为以下 SenseNova 模型配置（需将 <code class="text-pink-400">你的api_key</code> 替换为后文申领的Key）：</li>
+                                    <li>配置文件路径：<code class="text-cyan-400 font-mono">~/.workbuddy/models.json</code></li>
+                                    <li>配置 SenseNova 模型：</li>
                                 </ol>
                                 
                                 <div class="bg-slate-900/80 border border-white/5 rounded-lg p-2.5 relative group font-mono text-[10px] text-slate-300 overflow-y-auto max-h-48 custom-scroll select-all">
-<pre id="slide9-config-text">{
+<pre id="slide9-config-text">在 WorkBuddy 中配置 OpenAI 兼容模型，请按以下步骤操作：
+
+1. 配置文件路径
+~/.workbuddy/models.json
+
+2.配置 SenseNova 模型
+{
   "models": [
     {
       "id": "deepseek-v4-flash", 
